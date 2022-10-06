@@ -3,38 +3,33 @@ import { writeUsersDB } from "../../backendLibs/dbLib";
 
 export default function depositRoute(req, res) {
   if (req.method === "PUT") {
-      const user = checkToken(req);
-    if (!user.isAdmin) {  //check authentication
-      const amount = req.body.amount;
-      //validate body
-      if (typeof amount !== "number")
-        return res.status(400).json({ ok: false, message: "Invalid amount" });
+    const user = checkToken(req);
+    if (user == null || user.isAdmin)
+      return res.status(403).json({ ok: false, message: "You do not have permission to deposit" });
 
-      //check if amount < 1
-      if(amount < 1){
-         return res.status(400).json({ ok: false, message: "Amount must be greater than 0" });
-      }
+    const amount = req.body.amount;
+    //validate body
+    if (typeof amount !== "number")
+      return res.status(400).json({ ok: false, message: "Invalid amount" });
 
-      //find and update money in DB
-      const users = readUsersDB();
-      const foundUserIdx = users.findIndex((x) => x.username === user.username);
-      if (foundUserIdx === -1)
-      return res
-        .status(404)
-        .json({ ok: false, message: "user is not found" });
+    //check if amount < 1
+    if (amount <= 0)
+      return res.status(400).json({ ok: false, message: "Amount must be greater than 0" });
 
-      users[foundUserIdx].money += req.body.amount;
-      writeUsersDB(users);
+    //find and update money in DB
+    const users = readUsersDB();
+    const userResult = users.find(x => {
+      return user.username === x.username
+    })
+    userResult.money += amount;
+    writeUsersDB(users);
 
-      return res.json({ ok: true, money: users[foundUserIdx].money });
-
+    //return response
+    return res.status(200).json({
+      ok: true,
+      money: userResult.money != null ? userResult.money : 0,
+    })
     } else {
-      return res.status(403).json({
-        ok: false,
-        message: "You do not have permission to deposit",
-      });
-    }
-  } else {
     return res.status(400).json({ ok: false, message: "Invalid HTTP Method" });
   }
 }
